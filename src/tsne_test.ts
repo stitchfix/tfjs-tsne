@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 import * as tf_tsne from './tsne';
 
 /**
@@ -25,8 +25,8 @@ import * as tf_tsne from './tsne';
 function generateData(numPoints = 300, numDimensions = 10) {
   const data = tf.tidy(() => {
     return tf.linspace(0, 1, numPoints * numDimensions)
-        .reshape([ numPoints, numDimensions ])
-        .add(tf.randomUniform([ numPoints, numDimensions ]));
+        .reshape([numPoints, numDimensions])
+        .add(tf.randomUniform([numPoints, numDimensions]));
   });
   return data;
 }
@@ -36,9 +36,9 @@ describe('TSNE class', () => {
     const data = generateData();
     expect(() => {
       tf_tsne.tsne(data, {
-        perplexity : 100,
-        verbose : false,
-        knnMode : 'auto',
+        perplexity: 100,
+        verbose: false,
+        knnMode: 'auto',
       });
     }).toThrow();
 
@@ -52,9 +52,9 @@ describe('TSNE class', () => {
     const maximumPerplexity = tf_tsne.maximumPerplexity();
     expect(() => {
       tf_tsne.tsne(data, {
-        perplexity : maximumPerplexity + 1,
-        verbose : false,
-        knnMode : 'auto',
+        perplexity: maximumPerplexity + 1,
+        verbose: false,
+        knnMode: 'auto',
       });
     }).toThrow();
 
@@ -69,9 +69,9 @@ describe('TSNE class', () => {
        const maximumPerplexity = tf_tsne.maximumPerplexity();
        expect(() => {
          tf_tsne.tsne(data, {
-           perplexity : maximumPerplexity,
-           verbose : false,
-           knnMode : 'auto',
+           perplexity: maximumPerplexity,
+           verbose: false,
+           knnMode: 'auto',
          });
        }).not.toThrow();
 
@@ -81,31 +81,31 @@ describe('TSNE class', () => {
 
 describe('TSNE class', () => {
   it('iterateKnn and iterate also work when the number of ' +
-    'dimensions is larger than the number of points',
-    async () => {
-      const data = generateData(100, 20000);
-      const testOpt = tf_tsne.tsne(data, {
-          perplexity : 15,
-          verbose : false,
-          knnMode : 'auto',
-      });
+         'dimensions is larger than the number of points',
+     async () => {
+       const data = generateData(100, 20000);
+       const testOpt = tf_tsne.tsne(data, {
+         perplexity: 15,
+         verbose: false,
+         knnMode: 'auto',
+       });
 
-      try {
-        await testOpt.iterateKnn(10);
-      } catch(e) {
-        fail('iterateKnn threw exception: ${e}');
-      }
+       try {
+         await testOpt.iterateKnn(10);
+       } catch (e) {
+         fail('iterateKnn threw exception: ${e}');
+       }
 
-      try {
-        await testOpt.iterate(10);
-      } catch(e) {
-        fail('iterate threw exception: ${e}');
-      }
+       try {
+         await testOpt.iterate(10);
+       } catch (e) {
+         fail('iterate threw exception: ${e}');
+       }
 
-      const coords = await testOpt.coordinates();
-      expect(coords.shape[0]).toBe(100);
-      expect(coords.shape[1]).toBe(2);
-      data.dispose();
-      return;
-    });
+       const coords = await testOpt.coordinates();
+       expect(coords.shape[0]).toBe(100);
+       expect(coords.shape[1]).toBe(2);
+       data.dispose();
+       return;
+     });
 });

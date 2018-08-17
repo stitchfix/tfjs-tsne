@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 
 import * as gl_util from './gl_util';
 import {RearrangedData} from './interfaces';

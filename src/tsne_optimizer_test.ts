@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 import * as dataset_util from './dataset_util';
 import * as tf_tsne from './tsne_optimizer';
 

@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "packages": {
+    "@stitchfix/tfjs-core": {
+      "signature": "1dd092e70d995b7d0f5fd1dfd3c73136",
+      "file": true,
+      "replaced": "^0.10.1"
+    }
+  }
+}

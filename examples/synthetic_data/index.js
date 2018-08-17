@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 import * as d3 from 'd3';
 
 import * as tsne from '../../src/index';

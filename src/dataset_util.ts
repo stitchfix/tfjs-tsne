@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 import * as gl_util from './gl_util';
 import {RearrangedData} from './interfaces';
 
@@ -141,9 +141,8 @@ export function generateKNNClusterTexture(
     numPoints: number, numClusters: number,
     numNeighbors: number): {knnGraph: WebGLTexture, dataShape: RearrangedData} {
   // Computing data shape
-  const pointsPerRow =
-      Math.max(1,
-        Math.floor(Math.sqrt(numPoints * numNeighbors) / numNeighbors));
+  const pointsPerRow = Math.max(
+      1, Math.floor(Math.sqrt(numPoints * numNeighbors) / numNeighbors));
   const numRows = Math.ceil(numPoints / pointsPerRow);
   const dataShape =
       {numPoints, pixelsPerPoint: numNeighbors, numRows, pointsPerRow};
@@ -178,9 +177,8 @@ export function generateKNNClusterTexture(
 export function generateKNNLineTexture(numPoints: number, numNeighbors: number):
     {knnGraph: WebGLTexture, dataShape: RearrangedData} {
   // Computing data shape
-  const pointsPerRow =
-      Math.max(1,
-        Math.floor(Math.sqrt(numPoints * numNeighbors) / numNeighbors));
+  const pointsPerRow = Math.max(
+      1, Math.floor(Math.sqrt(numPoints * numNeighbors) / numNeighbors));
   const numRows = Math.ceil(numPoints / pointsPerRow);
   const dataShape =
       {numPoints, pixelsPerPoint: numNeighbors, numRows, pointsPerRow};

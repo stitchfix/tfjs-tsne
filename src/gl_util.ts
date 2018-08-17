@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 
 //////////////////////  GPGPU_CONTEXT  /////////////////////////////
 // Method of the GPGPUContext class

@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 import * as gl_util from './gl_util';
 import {RearrangedData} from './interfaces';
 
@@ -44,9 +44,8 @@ export async function tensorToDataTexture(tensor: tf.Tensor):
   const numDimensions = inputShape[1];
   const numChannels = 4;
   const pixelsPerPoint = Math.ceil(numDimensions / numChannels);
-  const pointsPerRow =
-      Math.max(1,
-        Math.floor(Math.sqrt(numPoints * pixelsPerPoint) / pixelsPerPoint));
+  const pointsPerRow = Math.max(
+      1, Math.floor(Math.sqrt(numPoints * pixelsPerPoint) / pixelsPerPoint));
   const numRows = Math.ceil(numPoints / pointsPerRow);
 
   const tensorData = tensor.dataSync();

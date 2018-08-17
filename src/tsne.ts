@@ -15,7 +15,7 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@stitchfix/tfjs-core';
 
 import {RearrangedData} from './interfaces';
 import {KNNEstimator} from './knn';
@@ -23,12 +23,12 @@ import {tensorToDataTexture} from './tensor_to_data_texture';
 import {TSNEOptimizer} from './tsne_optimizer';
 
 export interface TSNEConfiguration {
-  perplexity?: number;            // Default: 18
-  exaggeration?: number;          // Default: 4
-  exaggerationIter?: number;      // Default: 300
-  exaggerationDecayIter?: number; // Default: 200
-  momentum?: number;              // Default: 0.8
-  verbose?: boolean;              // Default: false
+  perplexity?: number;             // Default: 18
+  exaggeration?: number;           // Default: 4
+  exaggerationIter?: number;       // Default: 300
+  exaggerationDecayIter?: number;  // Default: 200
+  momentum?: number;               // Default: 0.8
+  verbose?: boolean;               // Default: false
   knnMode: 'auto'|'bruteForce';
   // Default: auto
 }
@@ -98,8 +98,9 @@ export class TSNE {
     }
     const maxPerplexity = maximumPerplexity();
     if (perplexity > maxPerplexity) {
-      throw Error(`computeTSNE: perplexity cannot be greater than` +
-                  `${maxPerplexity} on this machine`);
+      throw Error(
+          `computeTSNE: perplexity cannot be greater than` +
+          `${maxPerplexity} on this machine`);
     }
   }
 
