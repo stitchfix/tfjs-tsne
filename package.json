@@ -35,7 +35,7 @@
     "yalc": "~1.0.0-pre.21"
   },
   "peerDependencies": {
-    "@stitchfix/tfjs-core": ">=0.10.1"
+    "@stitchfix/tfjs-core": "0.10.1-worker.0"
   },
   "scripts": {
     "build": "tsc --project tsconfig-es5.json && tsc",
