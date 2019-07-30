@@ -1,6 +1,6 @@
 {
   "name": "@stitchfix/tfjs-tsne",
-  "version": "0.2.0-worker.0",
+  "version": "0.2.0-worker.1",
   "description": "TensorFlow.js powered tSNE implementation",
   "private": false,
   "main": "dist/index.js",
