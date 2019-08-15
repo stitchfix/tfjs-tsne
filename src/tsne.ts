@@ -15,21 +15,21 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+import * as tf from "@tensorflow/tfjs-core"
 
-import {RearrangedData} from './interfaces';
-import {KNNEstimator} from './knn';
-import {tensorToDataTexture} from './tensor_to_data_texture';
-import {TSNEOptimizer} from './tsne_optimizer';
+import { RearrangedData } from "./interfaces"
+import { KNNEstimator } from "./knn"
+import { tensorToDataTexture } from "./tensor_to_data_texture"
+import { TSNEOptimizer } from "./tsne_optimizer"
 
 export interface TSNEConfiguration {
-  perplexity?: number;            // Default: 18
-  exaggeration?: number;          // Default: 4
-  exaggerationIter?: number;      // Default: 300
-  exaggerationDecayIter?: number; // Default: 200
-  momentum?: number;              // Default: 0.8
-  verbose?: boolean;              // Default: false
-  knnMode: 'auto'|'bruteForce';
+  perplexity?: number // Default: 18
+  exaggeration?: number // Default: 4
+  exaggerationIter?: number // Default: 300
+  exaggerationDecayIter?: number // Default: 200
+  momentum?: number // Default: 0.8
+  verbose?: boolean // Default: false
+  knnMode: "auto" | "bruteForce"
   // Default: auto
 }
 
@@ -38,17 +38,17 @@ export interface TSNEConfiguration {
  * WebGL capabilities.
  */
 export function maximumPerplexity() {
-  const backend = tf.ENV.findBackend('webgl') as tf.webgl.MathBackendWebGL;
+  const backend = tf.findBackend("webgl") as tf.webgl.MathBackendWebGL
   if (backend === null) {
-    throw Error('WebGL backend is not available');
+    throw Error("WebGL backend is not available")
   }
-  const gl = backend.getGPGPUContext().gl;
-  const maxVaryingVectors = gl.getParameter(gl.MAX_VARYING_VECTORS);
+  const gl = backend.getGPGPUContext().gl
+  const maxVaryingVectors = gl.getParameter(gl.MAX_VARYING_VECTORS)
   // one vector is reserved and each vector contains 4 neighbors;
-  const numNeighbors = (maxVaryingVectors - 1) * 4;
+  const numNeighbors = (maxVaryingVectors - 1) * 4
   // the maximum perplexity is a third of the maximum number of neighbors
-  const maximumPerplexity = Math.floor(numNeighbors / 3);
-  return maximumPerplexity;
+  const maximumPerplexity = Math.floor(numNeighbors / 3)
+  return maximumPerplexity
 }
 
 /**
@@ -58,48 +58,50 @@ export function maximumPerplexity() {
  * @param config configuration options
  */
 export function tsne(data: tf.Tensor, config?: TSNEConfiguration) {
-  return new TSNE(data, config);
+  return new TSNE(data, config)
 }
 
 export class TSNE {
-  private data: tf.Tensor;
-  private numPoints: number;
-  private numDimensions: number;
-  private numNeighbors: number;
-  private packedData: {texture: WebGLTexture, shape: RearrangedData};
-  private verbose: boolean;
-  private knnEstimator: KNNEstimator;
-  private optimizer: TSNEOptimizer;
-  private config: TSNEConfiguration;
-  private initialized: boolean;
-  private probabilitiesInitialized: boolean;
-  private knnMode: 'auto'|'bruteForce';
+  private data: tf.Tensor
+  private numPoints: number
+  private numDimensions: number
+  private numNeighbors: number
+  private packedData: { texture: WebGLTexture; shape: RearrangedData }
+  private verbose: boolean
+  private knnEstimator: KNNEstimator
+  private optimizer: TSNEOptimizer
+  private config: TSNEConfiguration
+  private initialized: boolean
+  private probabilitiesInitialized: boolean
+  private knnMode: "auto" | "bruteForce"
 
   constructor(data: tf.Tensor, config?: TSNEConfiguration) {
-    this.initialized = false;
-    this.probabilitiesInitialized = false;
-    this.data = data;
-    this.config = config;
+    this.initialized = false
+    this.probabilitiesInitialized = false
+    this.data = data
+    this.config = config
 
-    const inputShape = this.data.shape;
-    this.numPoints = inputShape[0];
-    this.numDimensions = inputShape[1];
+    const inputShape = this.data.shape
+    this.numPoints = inputShape[0]
+    this.numDimensions = inputShape[1]
 
     if (inputShape.length !== 2) {
-      throw Error('computeTSNE: input tensor must be 2-dimensional');
+      throw Error("computeTSNE: input tensor must be 2-dimensional")
     }
 
     // Checking for a valid perplexity value given hardware limitations
-    let perplexity = 18;
+    let perplexity = 18
     if (this.config !== undefined) {
       if (this.config.perplexity !== undefined) {
-        perplexity = this.config.perplexity;
+        perplexity = this.config.perplexity
       }
     }
-    const maxPerplexity = maximumPerplexity();
+    const maxPerplexity = maximumPerplexity()
     if (perplexity > maxPerplexity) {
-      throw Error(`computeTSNE: perplexity cannot be greater than` +
-                  `${maxPerplexity} on this machine`);
+      throw Error(
+        `computeTSNE: perplexity cannot be greater than` +
+          `${maxPerplexity} on this machine`
+      )
     }
   }
 
@@ -110,81 +112,87 @@ export class TSNE {
    */
   private async initialize(): Promise<void> {
     // Default parameters
-    let perplexity = 18;
-    let exaggeration = 4;
-    let exaggerationIter = 300;
-    let exaggerationDecayIter = 200;
-    let momentum = 0.8;
-    this.verbose = false;
-    this.knnMode = 'auto';
+    let perplexity = 18
+    let exaggeration = 4
+    let exaggerationIter = 300
+    let exaggerationDecayIter = 200
+    let momentum = 0.8
+    this.verbose = false
+    this.knnMode = "auto"
 
     // Reading user defined configuration
     if (this.config !== undefined) {
       if (this.config.perplexity !== undefined) {
-        perplexity = this.config.perplexity;
+        perplexity = this.config.perplexity
       }
       if (this.config.exaggeration !== undefined) {
-        exaggeration = this.config.exaggeration;
+        exaggeration = this.config.exaggeration
       }
       if (this.config.exaggerationIter !== undefined) {
-        exaggerationIter = this.config.exaggerationIter;
+        exaggerationIter = this.config.exaggerationIter
       }
       if (this.config.exaggerationDecayIter !== undefined) {
-        exaggerationDecayIter = this.config.exaggerationDecayIter;
+        exaggerationDecayIter = this.config.exaggerationDecayIter
       }
       if (this.config.momentum !== undefined) {
-        momentum = this.config.momentum;
+        momentum = this.config.momentum
       }
       if (this.config.verbose !== undefined) {
-        this.verbose = this.config.verbose;
+        this.verbose = this.config.verbose
       }
       if (this.config.knnMode !== undefined) {
-        this.knnMode = this.config.knnMode;
+        this.knnMode = this.config.knnMode
       }
     }
 
     // Neighbors must be roughly 3*perplexity and a multiple of 4
-    this.numNeighbors = Math.floor((perplexity * 3) / 4) * 4;
-    this.packedData = await tensorToDataTexture(this.data);
+    this.numNeighbors = Math.floor((perplexity * 3) / 4) * 4
+    this.packedData = await tensorToDataTexture(this.data)
 
     if (this.verbose) {
-      console.log(`Number of points:\t${this.numPoints}`);
-      console.log(`Number of dimensions:\t ${this.numDimensions}`);
-      console.log(`Number of neighbors:\t${this.numNeighbors}`);
-      console.log(`kNN mode:\t${this.knnMode}`);
+      console.log(`Number of points:\t${this.numPoints}`)
+      console.log(`Number of dimensions:\t ${this.numDimensions}`)
+      console.log(`Number of neighbors:\t${this.numNeighbors}`)
+      console.log(`kNN mode:\t${this.knnMode}`)
     }
 
     this.knnEstimator = new KNNEstimator(
-        this.packedData.texture, this.packedData.shape, this.numPoints,
-        this.numDimensions, this.numNeighbors, this.verbose);
+      this.packedData.texture,
+      this.packedData.shape,
+      this.numPoints,
+      this.numDimensions,
+      this.numNeighbors,
+      this.verbose
+    )
 
-    this.optimizer = new TSNEOptimizer(this.numPoints, false);
+    this.optimizer = new TSNEOptimizer(this.numPoints, false)
     const exaggerationPolyline = [
-      {iteration: exaggerationIter, value: exaggeration},
-      {iteration: exaggerationIter + exaggerationDecayIter, value: 1}
-    ];
+      { iteration: exaggerationIter, value: exaggeration },
+      { iteration: exaggerationIter + exaggerationDecayIter, value: 1 },
+    ]
 
     if (this.verbose) {
       console.log(
-          `Exaggerating for ${exaggerationPolyline[0].iteration} ` +
+        `Exaggerating for ${exaggerationPolyline[0].iteration} ` +
           `iterations with a value of ${exaggerationPolyline[0].value}. ` +
-          `Exaggeration is removed after ${
-              exaggerationPolyline[1].iteration}.`);
+          `Exaggeration is removed after ${exaggerationPolyline[1].iteration}.`
+      )
     }
 
-    this.optimizer.exaggeration = exaggerationPolyline;
-    this.optimizer.momentum = momentum;
+    this.optimizer.exaggeration = exaggerationPolyline
+    this.optimizer.momentum = momentum
 
     // We set a large step size (ETA) for large embeddings and we decrease it
     // for small embeddings.
-    const maximumEta = 2500;
-    const minimumEta = 250;
-    const numPointsMaximumEta = 2000;
+    const maximumEta = 2500
+    const minimumEta = 250
+    const numPointsMaximumEta = 2000
     if (this.numPoints > numPointsMaximumEta) {
-      this.optimizer.eta = maximumEta;
+      this.optimizer.eta = maximumEta
     } else {
-      this.optimizer.eta = minimumEta +
-          (maximumEta - minimumEta) * (this.numPoints / numPointsMaximumEta);
+      this.optimizer.eta =
+        minimumEta +
+        (maximumEta - minimumEta) * (this.numPoints / numPointsMaximumEta)
     }
   }
 
@@ -195,18 +203,18 @@ export class TSNE {
    * @param {number} iterations Number of iterations to compute. Default = 1000
    */
   async compute(iterations = 1000): Promise<void> {
-    const knnIter = this.knnIterations();
+    const knnIter = this.knnIterations()
     if (this.verbose) {
-      console.log(`Number of KNN iterations:\t${knnIter}`);
-      console.log('Computing the KNN...');
+      console.log(`Number of KNN iterations:\t${knnIter}`)
+      console.log("Computing the KNN...")
     }
-    await this.iterateKnn(knnIter);
+    await this.iterateKnn(knnIter)
     if (this.verbose) {
-      console.log('Computing the tSNE embedding...');
+      console.log("Computing the tSNE embedding...")
     }
-    await this.iterate(iterations);
+    await this.iterate(iterations)
     if (this.verbose) {
-      console.log('Done!');
+      console.log("Done!")
     }
   }
 
@@ -216,13 +224,13 @@ export class TSNE {
    */
   async iterateKnn(iterations = 1): Promise<void> {
     if (!this.initialized) {
-      await this.initialize();
+      await this.initialize()
     }
-    this.probabilitiesInitialized = false;
+    this.probabilitiesInitialized = false
     for (let iter = 0; iter < iterations; ++iter) {
-      this.knnEstimator.iterateBruteForce();
-      if ((this.knnEstimator.iteration % 100) === 0 && this.verbose) {
-        console.log(`Iteration KNN:\t${this.knnEstimator.iteration}`);
+      this.knnEstimator.iterateBruteForce()
+      if (this.knnEstimator.iteration % 100 === 0 && this.verbose) {
+        console.log(`Iteration KNN:\t${this.knnEstimator.iteration}`)
       }
     }
   }
@@ -234,12 +242,12 @@ export class TSNE {
    */
   async iterate(iterations = 1): Promise<void> {
     if (!this.probabilitiesInitialized) {
-      await this.initializeProbabilities();
+      await this.initializeProbabilities()
     }
     for (let iter = 0; iter < iterations; ++iter) {
-      await this.optimizer.iterate();
-      if ((this.optimizer.iteration % 100) === 0 && this.verbose) {
-        console.log(`Iteration tSNE:\t${this.optimizer.iteration}`);
+      await this.optimizer.iterate()
+      if (this.optimizer.iteration % 100 === 0 && this.verbose) {
+        console.log(`Iteration tSNE:\t${this.optimizer.iteration}`)
       }
     }
   }
@@ -248,7 +256,7 @@ export class TSNE {
    * Return the maximum number of KNN iterations to be performed
    */
   knnIterations() {
-    return Math.ceil(this.numPoints / 20);
+    return Math.ceil(this.numPoints / 20)
   }
 
   /**
@@ -260,28 +268,35 @@ export class TSNE {
   coordinates(normalized = true): tf.Tensor {
     if (normalized) {
       return tf.tidy(() => {
-        const rangeX = this.optimizer.maxX - this.optimizer.minX;
-        const rangeY = this.optimizer.maxY - this.optimizer.minY;
-        const min =
-            tf.tensor2d([this.optimizer.minX, this.optimizer.minY], [1, 2]);
-        const max =
-            tf.tensor2d([this.optimizer.maxX, this.optimizer.maxY], [1, 2]);
+        const rangeX = this.optimizer.maxX - this.optimizer.minX
+        const rangeY = this.optimizer.maxY - this.optimizer.minY
+        const min = tf.tensor2d(
+          [this.optimizer.minX, this.optimizer.minY],
+          [1, 2]
+        )
+        const max = tf.tensor2d(
+          [this.optimizer.maxX, this.optimizer.maxY],
+          [1, 2]
+        )
 
         // The embedding is normalized in the 0-1 range while preserving the
         // aspect ratio
-        const range = max.sub(min);
-        const maxRange = tf.max(range);
+        const range = max.sub(min)
+        const maxRange = tf.max(range)
         const offset = tf.tidy(() => {
           if (rangeX < rangeY) {
-            return tf.tensor2d([(rangeY - rangeX) / 2, 0], [1, 2]);
+            return tf.tensor2d([(rangeY - rangeX) / 2, 0], [1, 2])
           } else {
-            return tf.tensor2d([0, (rangeX - rangeY) / 2], [1, 2]);
+            return tf.tensor2d([0, (rangeX - rangeY) / 2], [1, 2])
           }
-        });
-        return this.optimizer.embedding2D.sub(min).add(offset).div(maxRange);
-      });
+        })
+        return this.optimizer.embedding2D
+          .sub(min)
+          .add(offset)
+          .div(maxRange)
+      })
     } else {
-      return this.optimizer.embedding2D;
+      return this.optimizer.embedding2D
     }
   }
 
@@ -294,14 +309,14 @@ export class TSNE {
    *                   the coordinates to 0-1 range
    */
   async coordsArray(normalized = true): Promise<number[][]> {
-    const coordsData = await this.coordinates(normalized).data();
+    const coordsData = await this.coordinates(normalized).data()
 
-    const coords = [];
+    const coords = []
     for (let i = 0; i < coordsData.length; i += 2) {
-      coords.push([coordsData[i], coordsData[i + 1]]);
+      coords.push([coordsData[i], coordsData[i + 1]])
     }
 
-    return coords;
+    return coords
   }
 
   /**
@@ -310,10 +325,10 @@ export class TSNE {
    */
   async knnTotalDistance(): Promise<number> {
     const sum = tf.tidy(() => {
-      const distanceTensor = this.knnEstimator.distancesTensor();
-      return distanceTensor.sum();
-    });
-    return (await sum.data())[0];
+      const distanceTensor = this.knnEstimator.distancesTensor()
+      return distanceTensor.sum()
+    })
+    return (await sum.data())[0]
   }
 
   /**
@@ -323,11 +338,13 @@ export class TSNE {
    */
   private async initializeProbabilities() {
     if (this.verbose) {
-      console.log(`Initializing probabilities`);
+      console.log(`Initializing probabilities`)
     }
     await this.optimizer.initializeNeighborsFromKNNTexture(
-        this.knnEstimator.knnShape, this.knnEstimator.knn());
+      this.knnEstimator.knnShape,
+      this.knnEstimator.knn()
+    )
 
-    this.probabilitiesInitialized = true;
+    this.probabilitiesInitialized = true
   }
 }

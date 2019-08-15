@@ -15,22 +15,26 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
-import * as gl_util from './gl_util';
+import * as tf from "@tensorflow/tfjs-core"
+import * as gl_util from "./gl_util"
 
 export interface RearrangedData {
-  numPoints: number;
-  pointsPerRow: number;
-  pixelsPerPoint: number;
-  numRows: number;
+  numPoints: number
+  pointsPerRow: number
+  pixelsPerPoint: number
+  numRows: number
 }
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
+const DEBUG = true
+
 function generateFragmentShaderSource(
-    distanceComputationSource: string, numNeighbors: number): string {
+  distanceComputationSource: string,
+  numNeighbors: number
+): string {
   const source = `#version 300 es
     precision highp float;
     uniform sampler2D data_tex;
@@ -73,8 +77,8 @@ function generateFragmentShaderSource(
         fragmentColor.g = MAX_DIST;
       }
     }
-  `;
-  return source;
+  `
+  return source
 }
 
 function generateVariablesAndDeclarationsSource(numNeighbors: number) {
@@ -108,8 +112,8 @@ function generateVariablesAndDeclarationsSource(numNeighbors: number) {
 
   float distances_heap[NUM_NEIGHBORS];
   int knn_heap[NUM_NEIGHBORS];
-  `;
-  return source;
+  `
+  return source
 }
 
 const randomGeneratorSource = `
@@ -158,7 +162,7 @@ float random( float f ) {
 //     return fract(cos(dot(vec2(seed,seed), randomConst)) * 12345.6789);
 // }
 
-`;
+`
 
 // Reads the KNN-graph from the texture and initialize the heap
 const distancesInitializationSource = `
@@ -179,7 +183,7 @@ void initializeDistances(int pnt_id) {
     distances_heap[n] = init.g;
   }
 }
-`;
+`
 
 // Code for handling the heap
 const knnHeapSource = `
@@ -240,7 +244,7 @@ void insertInKNN(float dist_sq, int j) {
     }
   }
 }
-`;
+`
 
 const vertexPositionSource = `
   //Line positions
@@ -258,20 +262,25 @@ const vertexPositionSource = `
   float col = (mod(float(point_id),points_per_row_knn)+1.)/(points_per_row_knn);
   col = col*2.0-1.0;
   gl_Position = vec4(col,row,0,1);
-`;
+`
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
 export function createBruteForceKNNProgram(
-    gpgpu: tf.webgl.GPGPUContext, numNeighbors: number,
-    distanceComputationSource: string): WebGLProgram {
-  const vertexShaderSource = `#version 300 es
+  gpgpu: tf.webgl.GPGPUContext,
+  numNeighbors: number,
+  distanceComputationSource: string
+): WebGLProgram {
+  const vertexShaderSource =
+    `#version 300 es
     ` +
-      generateVariablesAndDeclarationsSource(numNeighbors) +
-      distancesInitializationSource + distanceComputationSource +
-      knnHeapSource + `
+    generateVariablesAndDeclarationsSource(numNeighbors) +
+    distancesInitializationSource +
+    distanceComputationSource +
+    knnHeapSource +
+    `
     void main() {
       //Getting the id of the point and the line id (0/1)
       point_id = int((vertex_id / 2.0) + 0.1);
@@ -311,13 +320,18 @@ export function createBruteForceKNNProgram(
 
       neighbor_id = NUM_NEIGHBORS_FLOAT;
     }
-  `;
+  `
 
-  const knnFragmentShaderSource =
-      generateFragmentShaderSource(distanceComputationSource, numNeighbors);
+  const knnFragmentShaderSource = generateFragmentShaderSource(
+    distanceComputationSource,
+    numNeighbors
+  )
 
   return gl_util.createVertexProgram(
-      gpgpu.gl, vertexShaderSource, knnFragmentShaderSource);
+    gpgpu.gl,
+    vertexShaderSource,
+    knnFragmentShaderSource
+  )
 }
 
 ///////////////////////////////////////////////////////////
@@ -325,13 +339,19 @@ export function createBruteForceKNNProgram(
 ///////////////////////////////////////////////////////////
 
 export function createRandomSamplingKNNProgram(
-    gpgpu: tf.webgl.GPGPUContext, numNeighbors: number,
-    distanceComputationSource: string): WebGLProgram {
-  const vertexShaderSource = `#version 300 es
+  gpgpu: tf.webgl.GPGPUContext,
+  numNeighbors: number,
+  distanceComputationSource: string
+): WebGLProgram {
+  const vertexShaderSource =
+    `#version 300 es
     ` +
-      generateVariablesAndDeclarationsSource(numNeighbors) +
-      distancesInitializationSource + randomGeneratorSource +
-      distanceComputationSource + knnHeapSource + `
+    generateVariablesAndDeclarationsSource(numNeighbors) +
+    distancesInitializationSource +
+    randomGeneratorSource +
+    distanceComputationSource +
+    knnHeapSource +
+    `
     void main() {
       //Getting the id of the point and the line id (0/1)
       point_id = int((vertex_id/2.0)+0.1);
@@ -376,13 +396,18 @@ export function createRandomSamplingKNNProgram(
       }
       neighbor_id = NUM_NEIGHBORS_FLOAT;
     }
-  `;
+  `
 
-  const knnFragmentShaderSource =
-      generateFragmentShaderSource(distanceComputationSource, numNeighbors);
+  const knnFragmentShaderSource = generateFragmentShaderSource(
+    distanceComputationSource,
+    numNeighbors
+  )
 
   return gl_util.createVertexProgram(
-      gpgpu.gl, vertexShaderSource, knnFragmentShaderSource);
+    gpgpu.gl,
+    vertexShaderSource,
+    knnFragmentShaderSource
+  )
 }
 
 ///////////////////////////////////////////////////////////
@@ -390,13 +415,19 @@ export function createRandomSamplingKNNProgram(
 ///////////////////////////////////////////////////////////
 
 export function createKNNDescentProgram(
-    gpgpu: tf.webgl.GPGPUContext, numNeighbors: number,
-    distanceComputationSource: string): WebGLProgram {
-  const vertexShaderSource = `#version 300 es
+  gpgpu: tf.webgl.GPGPUContext,
+  numNeighbors: number,
+  distanceComputationSource: string
+): WebGLProgram {
+  const vertexShaderSource =
+    `#version 300 es
     ` +
-      generateVariablesAndDeclarationsSource(numNeighbors) +
-      distancesInitializationSource + randomGeneratorSource +
-      distanceComputationSource + knnHeapSource + `
+    generateVariablesAndDeclarationsSource(numNeighbors) +
+    distancesInitializationSource +
+    randomGeneratorSource +
+    distanceComputationSource +
+    knnHeapSource +
+    `
     int fetchNeighborIdFromKNNTexture(int id, int neighbor_id) {
       //row coordinate in the texture
       float row = (floor(float(id)/points_per_row_knn)+0.5)/num_rows_knn;
@@ -479,13 +510,18 @@ export function createKNNDescentProgram(
       }
       neighbor_id = NUM_NEIGHBORS_FLOAT;
     }
-  `;
+  `
 
-  const knnFragmentShaderSource =
-      generateFragmentShaderSource(distanceComputationSource, numNeighbors);
+  const knnFragmentShaderSource = generateFragmentShaderSource(
+    distanceComputationSource,
+    numNeighbors
+  )
 
   return gl_util.createVertexProgram(
-      gpgpu.gl, vertexShaderSource, knnFragmentShaderSource);
+    gpgpu.gl,
+    vertexShaderSource,
+    knnFragmentShaderSource
+  )
 }
 
 ///////////////////////////////////////////////////////////
@@ -493,77 +529,122 @@ export function createKNNDescentProgram(
 ///////////////////////////////////////////////////////////
 
 export interface RearrangedData {
-  numPoints: number;
-  pointsPerRow: number;
-  pixelsPerPoint: number;
-  numRows: number;
+  numPoints: number
+  pointsPerRow: number
+  pixelsPerPoint: number
+  numRows: number
 }
 export function executeKNNProgram(
-    gpgpu: tf.webgl.GPGPUContext, program: WebGLProgram, dataTex: WebGLTexture,
-    startingKNNTex: WebGLTexture, iteration: number, knnShape: RearrangedData,
-    vertexIdBuffer: WebGLBuffer, targetTex?: WebGLTexture) {
-  const gl = gpgpu.gl;
-  const oldProgram: WebGLProgram = gpgpu.program;
-  const oldLineWidth: number = gl.getParameter(gl.LINE_WIDTH);
+  gpgpu: tf.webgl.GPGPUContext,
+  program: WebGLProgram,
+  dataTex: WebGLTexture,
+  startingKNNTex: WebGLTexture,
+  iteration: number,
+  knnShape: RearrangedData,
+  vertexIdBuffer: WebGLBuffer,
+  targetTex?: WebGLTexture
+) {
+  const gl = gpgpu.gl
+  const oldProgram: WebGLProgram = gpgpu.program
+  const oldLineWidth: number = gl.getParameter(gl.LINE_WIDTH)
 
   if (targetTex != null) {
     gpgpu.setOutputMatrixTexture(
-        targetTex, knnShape.numRows,
-        knnShape.pointsPerRow * knnShape.pixelsPerPoint);
+      targetTex,
+      knnShape.numRows,
+      knnShape.pointsPerRow * knnShape.pixelsPerPoint
+    )
   } else {
-    tf.webgl.webgl_util.bindCanvasToFramebuffer(gpgpu.gl);
+    tf.webgl.webgl_util.bindCanvasToFramebuffer(gpgpu.gl, DEBUG)
   }
 
   if (oldLineWidth !== 1) {
-    gl.lineWidth(1);
+    gl.lineWidth(1)
   }
-  gpgpu.setProgram(program);
+  gpgpu.setProgram(program)
 
-  gl.clearColor(0., 0., 0., 0.);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.clearColor(0, 0, 0, 0)
+  gl.clear(gl.COLOR_BUFFER_BIT)
 
-  tf.webgl.webgl_util.callAndCheck(
-      gl, () => gl.bindBuffer(gl.ARRAY_BUFFER, vertexIdBuffer));
+  tf.webgl.webgl_util.callAndCheck(gl, DEBUG, () =>
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexIdBuffer)
+  )
   tf.webgl.webgl_util.bindVertexBufferToProgramAttribute(
-      gl, program, 'vertex_id', vertexIdBuffer, 1, 0, 0);
+    gl,
+    DEBUG,
+    program,
+    "vertex_id",
+    vertexIdBuffer,
+    1,
+    0,
+    0
+  )
 
   const dataTexLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'data_tex');
-  gpgpu.setInputMatrixTexture(dataTex, dataTexLoc, 0);
+    gl,
+    DEBUG,
+    program,
+    "data_tex"
+  )
+  gpgpu.setInputMatrixTexture(dataTex, dataTexLoc, 0)
 
-  const startingKNNTexLoc =
-      tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-          gl, program, 'starting_knn_tex');
-  gpgpu.setInputMatrixTexture(startingKNNTex, startingKNNTexLoc, 1);
+  const startingKNNTexLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
+    gl,
+    DEBUG,
+    program,
+    "starting_knn_tex"
+  )
+  gpgpu.setInputMatrixTexture(startingKNNTex, startingKNNTexLoc, 1)
 
   const iterationLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'iteration');
-  gl.uniform1f(iterationLoc, iteration);
+    gl,
+    DEBUG,
+    program,
+    "iteration"
+  )
+  gl.uniform1f(iterationLoc, iteration)
 
   const numPointsLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'num_points');
-  gl.uniform1f(numPointsLoc, knnShape.numPoints);
+    gl,
+    DEBUG,
+    program,
+    "num_points"
+  )
+  gl.uniform1f(numPointsLoc, knnShape.numPoints)
 
   const pntsPerRowKNNLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'points_per_row_knn');
-  gl.uniform1f(pntsPerRowKNNLoc, knnShape.pointsPerRow);
+    gl,
+    DEBUG,
+    program,
+    "points_per_row_knn"
+  )
+  gl.uniform1f(pntsPerRowKNNLoc, knnShape.pointsPerRow)
 
   const numRowsKNNLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'num_rows_knn');
-  gl.uniform1f(numRowsKNNLoc, knnShape.numRows);
+    gl,
+    DEBUG,
+    program,
+    "num_rows_knn"
+  )
+  gl.uniform1f(numRowsKNNLoc, knnShape.numRows)
 
-  tf.webgl.webgl_util.callAndCheck(
-      gl, () => gl.drawArrays(gl.LINES, 0, knnShape.numPoints * 2));
+  tf.webgl.webgl_util.callAndCheck(gl, DEBUG, () =>
+    gl.drawArrays(gl.LINES, 0, knnShape.numPoints * 2)
+  )
 
   // Restore the old program and its vertex buffers
   // TOCHECK if it can be improved
   if (oldProgram != null) {
-    gpgpu.setProgram(oldProgram);
+    gpgpu.setProgram(oldProgram)
     tf.webgl.gpgpu_util.bindVertexProgramAttributeStreams(
-        gpgpu.gl, oldProgram, gpgpu.vertexBuffer);
+      gpgpu.gl,
+      DEBUG,
+      oldProgram,
+      gpgpu.vertexBuffer
+    )
   }
   if (oldLineWidth !== 1) {
-    gl.lineWidth(oldLineWidth);
+    gl.lineWidth(oldLineWidth)
   }
 }
 
@@ -571,8 +652,9 @@ export function executeKNNProgram(
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
-export function createCopyDistancesProgram(gpgpu: tf.webgl.GPGPUContext):
-    WebGLProgram {
+export function createCopyDistancesProgram(
+  gpgpu: tf.webgl.GPGPUContext
+): WebGLProgram {
   const fragmentShaderSource = `
     precision highp float;
     uniform sampler2D knn_tex;
@@ -584,44 +666,63 @@ export function createCopyDistancesProgram(gpgpu: tf.webgl.GPGPUContext):
       float distance = texture2D(knn_tex,coordinates).g;
       gl_FragColor = vec4(distance,0,0,1);
     }
-  `;
-  return gpgpu.createProgram(fragmentShaderSource);
+  `
+  return gpgpu.createProgram(fragmentShaderSource)
 }
 
 export function executeCopyDistancesProgram(
-    gpgpu: tf.webgl.GPGPUContext, program: WebGLProgram, knnTex: WebGLTexture,
-    knnShape: RearrangedData, targetTex?: WebGLTexture) {
-  const gl = gpgpu.gl;
+  gpgpu: tf.webgl.GPGPUContext,
+  program: WebGLProgram,
+  knnTex: WebGLTexture,
+  knnShape: RearrangedData,
+  targetTex?: WebGLTexture
+) {
+  const gl = gpgpu.gl
   if (targetTex != null) {
     gpgpu.setOutputMatrixTexture(
-        targetTex, knnShape.numRows,
-        knnShape.pointsPerRow * knnShape.pixelsPerPoint);
+      targetTex,
+      knnShape.numRows,
+      knnShape.pointsPerRow * knnShape.pixelsPerPoint
+    )
   } else {
-    tf.webgl.webgl_util.bindCanvasToFramebuffer(gpgpu.gl);
+    tf.webgl.webgl_util.bindCanvasToFramebuffer(gpgpu.gl, DEBUG)
   }
 
-  gpgpu.setProgram(program);
+  gpgpu.setProgram(program)
 
   const knnLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'knn_tex');
-  gpgpu.setInputMatrixTexture(knnTex, knnLoc, 0);
+    gl,
+    DEBUG,
+    program,
+    "knn_tex"
+  )
+  gpgpu.setInputMatrixTexture(knnTex, knnLoc, 0)
 
   const pntsPerRowLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'width');
-  gl.uniform1f(pntsPerRowLoc, knnShape.pointsPerRow * knnShape.pixelsPerPoint);
+    gl,
+    DEBUG,
+    program,
+    "width"
+  )
+  gl.uniform1f(pntsPerRowLoc, knnShape.pointsPerRow * knnShape.pixelsPerPoint)
 
   const numRowsLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'height');
-  gl.uniform1f(numRowsLoc, knnShape.numRows);
+    gl,
+    DEBUG,
+    program,
+    "height"
+  )
+  gl.uniform1f(numRowsLoc, knnShape.numRows)
 
-  gpgpu.executeProgram();
+  gpgpu.executeProgram()
 }
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
-export function createCopyIndicesProgram(gpgpu: tf.webgl.GPGPUContext):
-    WebGLProgram {
+export function createCopyIndicesProgram(
+  gpgpu: tf.webgl.GPGPUContext
+): WebGLProgram {
   const fragmentShaderSource = `
     precision highp float;
     uniform sampler2D knn_tex;
@@ -637,35 +738,53 @@ export function createCopyIndicesProgram(gpgpu: tf.webgl.GPGPUContext):
         gl_FragColor.b = 1.;
       }
     }
-  `;
-  return gpgpu.createProgram(fragmentShaderSource);
+  `
+  return gpgpu.createProgram(fragmentShaderSource)
 }
 
 export function executeCopyIndicesProgram(
-    gpgpu: tf.webgl.GPGPUContext, program: WebGLProgram, knnTex: WebGLTexture,
-    knnShape: RearrangedData, targetTex?: WebGLTexture) {
-  const gl = gpgpu.gl;
+  gpgpu: tf.webgl.GPGPUContext,
+  program: WebGLProgram,
+  knnTex: WebGLTexture,
+  knnShape: RearrangedData,
+  targetTex?: WebGLTexture
+) {
+  const gl = gpgpu.gl
   if (targetTex != null) {
     gpgpu.setOutputMatrixTexture(
-        targetTex, knnShape.numRows,
-        knnShape.pointsPerRow * knnShape.pixelsPerPoint);
+      targetTex,
+      knnShape.numRows,
+      knnShape.pointsPerRow * knnShape.pixelsPerPoint
+    )
   } else {
-    tf.webgl.webgl_util.bindCanvasToFramebuffer(gpgpu.gl);
+    tf.webgl.webgl_util.bindCanvasToFramebuffer(gpgpu.gl, DEBUG)
   }
 
-  gpgpu.setProgram(program);
+  gpgpu.setProgram(program)
 
   const knnLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'knn_tex');
-  gpgpu.setInputMatrixTexture(knnTex, knnLoc, 0);
+    gl,
+    DEBUG,
+    program,
+    "knn_tex"
+  )
+  gpgpu.setInputMatrixTexture(knnTex, knnLoc, 0)
 
   const pntsPerRowLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'width');
-  gl.uniform1f(pntsPerRowLoc, knnShape.pointsPerRow * knnShape.pixelsPerPoint);
+    gl,
+    DEBUG,
+    program,
+    "width"
+  )
+  gl.uniform1f(pntsPerRowLoc, knnShape.pointsPerRow * knnShape.pixelsPerPoint)
 
   const numRowsLoc = tf.webgl.webgl_util.getProgramUniformLocationOrThrow(
-      gl, program, 'height');
-  gl.uniform1f(numRowsLoc, knnShape.numRows);
+    gl,
+    DEBUG,
+    program,
+    "height"
+  )
+  gl.uniform1f(numRowsLoc, knnShape.numRows)
 
-  gpgpu.executeProgram();
+  gpgpu.executeProgram()
 }
