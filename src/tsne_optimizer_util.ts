@@ -78,6 +78,7 @@ export function createEmbeddingSplatterProgram(
       fragmentColor = texture(kernel_tex,(kernel_coords + 1.) / 2.0);
     }
   `
+
   return gl_util.createVertexProgram(
     gpgpu.gl,
     vertexShaderSource,
@@ -219,7 +220,7 @@ export function executeEmbeddingSplatterProgram(
 export function createQInterpolatorProgram(
   gpgpu: tf.webgl.GPGPUContext
 ): WebGLProgram {
-  const fragmentShaderSource = `
+  const fragmentShaderSource = `#version 300 es
     precision highp float;
     uniform sampler2D embedding_tex;
     uniform sampler2D splat_tex;
@@ -229,11 +230,12 @@ export function createQInterpolatorProgram(
     uniform float num_rows;
     uniform float num_points;
 
+    out vec4 fragColor;
     void main() {
       vec2 pnt_location = gl_FragCoord.xy - vec2(0.5,0.5);
 
       if(pnt_location.y * points_per_row + pnt_location.x >= num_points) {
-        gl_FragColor = vec4(0,0,0,0);
+        fragColor = vec4(0,0,0,0);
         return;
       }
 
@@ -244,15 +246,15 @@ export function createQInterpolatorProgram(
       vec2 emb_coords_y
               = vec2((pnt_location.x * 2. + 1.5) / emb_width, emb_row_coord);
 
-      float x_pnt = texture2D(embedding_tex,emb_coords_x).r;
-      float y_pnt = texture2D(embedding_tex,emb_coords_y).r;
+      float x_pnt = texture(embedding_tex,emb_coords_x).r;
+      float y_pnt = texture(embedding_tex,emb_coords_y).r;
 
       vec2 splat_coords = vec2(x_pnt,y_pnt);
       splat_coords = (splat_coords - minV) / (maxV - minV); //  0:1 space
 
-      float q = (texture2D(splat_tex,splat_coords).r - 1.);
+      float q = (texture(splat_tex,splat_coords).r - 1.);
 
-      gl_FragColor = vec4(q, 0, 0, 1);
+      fragColor = vec4(q, 0, 0, 1);
     }
   `
   return gpgpu.createProgram(fragmentShaderSource)
@@ -346,7 +348,7 @@ export function executeQInterpolatorProgram(
 export function createXYInterpolatorProgram(
   gpgpu: tf.webgl.GPGPUContext
 ): WebGLProgram {
-  const fragmentShaderSource = `
+  const fragmentShaderSource = `#version 300 es
     precision highp float;
     uniform sampler2D embedding_tex;
     uniform sampler2D splat_tex;
@@ -357,12 +359,13 @@ export function createXYInterpolatorProgram(
     uniform float num_points;
     uniform float eta;
 
+    out vec4 fragColor;
     void main() {
       vec2 pnt_location = gl_FragCoord.xy - vec2(0.5,0.5);
       pnt_location.x = floor(pnt_location.x/2.+0.1);
 
       if(pnt_location.y*points_per_row + pnt_location.x >= num_points) {
-        gl_FragColor = vec4(0,0,0,0);
+        fragColor = vec4(0,0,0,0);
         return;
       }
 
@@ -373,20 +376,20 @@ export function createXYInterpolatorProgram(
       vec2 emb_coords_y
               = vec2((pnt_location.x * 2. + 1.5) / emb_width, emb_row_coord);
 
-      float x_pnt = texture2D(embedding_tex,emb_coords_x).r;
-      float y_pnt = texture2D(embedding_tex,emb_coords_y).r;
+      float x_pnt = texture(embedding_tex,emb_coords_x).r;
+      float y_pnt = texture(embedding_tex,emb_coords_y).r;
 
       vec2 splat_coords = vec2(x_pnt,y_pnt);
       splat_coords = (splat_coords - minV) / (maxV - minV); //  0:1 space
 
       float q = 0.;
       if(mod(gl_FragCoord.x - 0.5,2.) < 0.5 ) {
-        q = texture2D(splat_tex,splat_coords).g * eta * 2.;
+        q = texture(splat_tex,splat_coords).g * eta * 2.;
       }else{
-        q = texture2D(splat_tex,splat_coords).b * eta * 2.;
+        q = texture(splat_tex,splat_coords).b * eta * 2.;
       }
 
-      gl_FragColor = vec4(q,0.0,0.0,1);
+      fragColor = vec4(q,0.0,0.0,1);
     }
   `
   return gpgpu.createProgram(fragmentShaderSource)
@@ -489,7 +492,7 @@ export function executeXYInterpolatorProgram(
 export function createAttractiveForcesComputationProgram(
   gpgpu: tf.webgl.GPGPUContext
 ): WebGLProgram {
-  const fragmentShaderSource = `
+  const fragmentShaderSource = `#version 300 es
     precision highp float;
 
     uniform sampler2D embedding_tex;
@@ -503,6 +506,7 @@ export function createAttractiveForcesComputationProgram(
     uniform float num_neighs_per_row;
     uniform float eta;
 
+    out vec4 fragColor;
     void main() {
       //add for nearest pixel interpolation
       vec2 half_pxl = vec2(0.5,0.5);
@@ -517,7 +521,7 @@ export function createAttractiveForcesComputationProgram(
 
       //just an extra fragment -> return
       if(i_location.y*points_per_row + i_location.x >= num_points) {
-        gl_FragColor = vec4(0,0,0,0);
+        fragColor = vec4(0,0,0,0);
         return;
       }
 
@@ -525,7 +529,7 @@ export function createAttractiveForcesComputationProgram(
       vec2 offset_coord = (i_location + half_pxl) /
                                               vec2(points_per_row,num_rows);
       //Offset information ...
-      vec4 offset_info  = texture2D(offset_tex,offset_coord);
+      vec4 offset_info  = texture(offset_tex,offset_coord);
       //... contains the number of neighbors for the point ...
       float num_neighs  = offset_info.z;
       //... and the coordinates of the firts neigh in the neigh textures
@@ -538,8 +542,8 @@ export function createAttractiveForcesComputationProgram(
       vec2 x_i_coord = vec2((i_location.x * 2. + 0.5) / emb_width, emb_row_i);
       vec2 y_i_coord = vec2((i_location.x * 2. + 1.5) / emb_width, emb_row_i);
       //getting the coordinates in the embedding
-      float x_i = texture2D(embedding_tex,x_i_coord).r;
-      float y_i = texture2D(embedding_tex,y_i_coord).r;
+      float x_i = texture(embedding_tex,x_i_coord).r;
+      float y_i = texture(embedding_tex,y_i_coord).r;
 
       //Sum of all attractive forces
       float sum_pos = 0.;
@@ -553,10 +557,10 @@ export function createAttractiveForcesComputationProgram(
         }
 
         //Get the id and the probability for the neighbor
-        float pij = texture2D(neigh_prob_tex,
+        float pij = texture(neigh_prob_tex,
                               (offset_neigh + half_pxl) / num_neighs_per_row
                              ).r;
-        float neigh_id = texture2D(neigh_id_tex,
+        float neigh_id = texture(neigh_id_tex,
                                   (offset_neigh + half_pxl) / num_neighs_per_row
                                   ).r;
 
@@ -566,8 +570,8 @@ export function createAttractiveForcesComputationProgram(
         float emb_row_j = (j_location.y + 0.5) / num_rows;
         vec2 x_j_coord = vec2((j_location.x * 2. + 0.5) / emb_width, emb_row_j);
         vec2 y_j_coord = vec2((j_location.x * 2. + 1.5) / emb_width, emb_row_j);
-        float x_j = texture2D(embedding_tex,x_j_coord).r;
-        float y_j = texture2D(embedding_tex,y_j_coord).r;
+        float x_j = texture(embedding_tex,x_j_coord).r;
+        float y_j = texture(embedding_tex,y_j_coord).r;
 
         //Actual computation of the attractive forces
         float dist_x    = (x_i - x_j);
@@ -592,7 +596,7 @@ export function createAttractiveForcesComputationProgram(
       }
 
       //The output is the sum of the attractive forces
-      gl_FragColor = vec4(sum_pos,0,0,0);
+      fragColor = vec4(sum_pos,0,0,0);
     }
   `
   return gpgpu.createProgram(fragmentShaderSource)
@@ -703,7 +707,7 @@ export function executeAttractiveForcesComputationProgram(
 export function createEmbeddingInitializationProgram(
   gpgpu: tf.webgl.GPGPUContext
 ): WebGLProgram {
-  const fragmentShaderSource = `
+  const fragmentShaderSource = `#version 300 es
     precision highp float;
 
     uniform sampler2D random_tex;
@@ -711,6 +715,7 @@ export function createEmbeddingInitializationProgram(
     uniform float num_rows;
     uniform float num_points;
 
+    out vec4 fragColor;
     void main() {
       //add for nearest pixel interpolation
       vec2 half_pxl = vec2(0.5,0.5);
@@ -723,7 +728,7 @@ export function createEmbeddingInitializationProgram(
 
       //just an extra fragment -> return
       if(pnt_location.y*points_per_row + pnt_location.x >= num_points) {
-        gl_FragColor = vec4(0,0,0,1);
+        fragColor = vec4(0,0,0,1);
         return;
       }
 
@@ -732,15 +737,15 @@ export function createEmbeddingInitializationProgram(
       vec2 rad_coord = vec2((pnt_location.x * 2. + 0.5) / width, row_coord);
       vec2 ang_coord = vec2((pnt_location.x * 2. + 1.5) / width, row_coord);
 
-      float rad = texture2D(random_tex,rad_coord).r * 3.;
-      float ang = texture2D(random_tex,ang_coord).r * 3.1415 * 2.;
+      float rad = texture(random_tex,rad_coord).r * 3.;
+      float ang = texture(random_tex,ang_coord).r * 3.1415 * 2.;
 
-      gl_FragColor = vec4(rad,ang,0,1);
+      fragColor = vec4(rad,ang,0,1);
 
       if(dimension < 0.5) {
-        gl_FragColor = vec4(cos(ang) * rad,0,0,0);
+        fragColor = vec4(cos(ang) * rad,0,0,0);
       }else{
-        gl_FragColor = vec4(sin(ang) * rad,0,0,0);
+        fragColor = vec4(sin(ang) * rad,0,0,0);
       }
     }
   `
@@ -806,7 +811,7 @@ export function executeEmbeddingInitializationProgram(
 export function createDistributionParametersComputationProgram(
   gpgpu: tf.webgl.GPGPUContext
 ): WebGLProgram {
-  const fragmentShaderSource = `
+  const fragmentShaderSource = `#version 300 es
     precision highp float;
 
     #define MAX_NEIGHBORS 128
@@ -834,15 +839,16 @@ export function createDistributionParametersComputationProgram(
                                         /(points_per_row * num_neighs),
             (point_location.y + half_pixel.y) / num_rows
         );
-        distances_squared[n] = texture2D(knn_graph_tex,knn_coordinates).g;
+        distances_squared[n] = texture(knn_graph_tex,knn_coordinates).g;
       }
     }
 
+    out vec4 fragColor;
     void main() {
       vec2 point_location = gl_FragCoord.xy - half_pixel;
       //invalid points
       if(point_location.y*points_per_row + point_location.x >= num_points) {
-        gl_FragColor = vec4(0,0,0,0);
+        fragColor = vec4(0,0,0,0);
         return;
       }
       readDistances(point_location);
@@ -896,7 +902,7 @@ export function createDistributionParametersComputationProgram(
           }
         }
       }
-      gl_FragColor = vec4(beta,sum_probabilities,0,1);
+      fragColor = vec4(beta,sum_probabilities,0,1);
     }
   `
   return gpgpu.createProgram(fragmentShaderSource)
@@ -980,7 +986,7 @@ export function executeDistributionParametersComputationProgram(
 export function createGaussiaDistributionsFromDistancesProgram(
   gpgpu: tf.webgl.GPGPUContext
 ): WebGLProgram {
-  const fragmentShaderSource = `
+  const fragmentShaderSource = `#version 300 es
     precision highp float;
     uniform sampler2D knn_graph_tex;
     uniform sampler2D parameters_tex;
@@ -991,22 +997,23 @@ export function createGaussiaDistributionsFromDistancesProgram(
 
     vec2 half_pixel = vec2(0.5,0.5);
 
+    out vec4 fragColor;
     void main() {
       vec2 point_location = gl_FragCoord.xy - half_pixel;
       point_location.x = floor(point_location.x / num_neighs);
 
       //invalid points
       if(point_location.y*points_per_row + point_location.x >= num_points) {
-        gl_FragColor = vec4(0,0,0,0);
+        fragColor = vec4(0,0,0,0);
         return;
       }
       float distance_squared
-            = texture2D(knn_graph_tex,
+            = texture(knn_graph_tex,
                         gl_FragCoord.xy /
                         vec2(points_per_row*num_neighs,num_rows)
                       ).g;
       vec2 parameters
-            = texture2D(parameters_tex,
+            = texture(parameters_tex,
                         (point_location.xy + half_pixel)/
                         vec2(points_per_row,num_rows)
                       ).rg;
@@ -1019,7 +1026,7 @@ export function createGaussiaDistributionsFromDistancesProgram(
         probability = 0.;
       }
 
-      gl_FragColor = vec4(probability,0,0,1);
+      fragColor = vec4(probability,0,0,1);
     }
   `
   return gpgpu.createProgram(fragmentShaderSource)
